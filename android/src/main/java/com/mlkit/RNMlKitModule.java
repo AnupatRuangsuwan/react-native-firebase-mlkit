@@ -15,6 +15,8 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.ml.vision.FirebaseVision;
+import com.google.firebase.ml.vision.label.FirebaseVisionLabel;
+import com.google.firebase.ml.vision.label.FirebaseVisionLabelDetector;
 import com.google.firebase.ml.vision.text.FirebaseVisionCloudTextRecognizerOptions;
 import com.google.firebase.ml.vision.common.FirebaseVisionImage;
 import com.google.firebase.ml.vision.text.FirebaseVisionText;
@@ -33,6 +35,54 @@ public class RNMlKitModule extends ReactContextBaseJavaModule {
   public RNMlKitModule(ReactApplicationContext reactContext) {
     super(reactContext);
     this.reactContext = reactContext;
+  }
+
+  @ReactMethod
+  public void deviceImageLabel(String uri, final  Promise promise){
+      try{
+          FirebaseVisionImage image = FirebaseVisionImage.fromFilePath(this.reactContext, android.net.Uri.parse(uri));
+          FirebaseVisionLabelDetector detector = FirebaseVision.getInstance().getVisionLabelDetector();
+
+          Task<List<FirebaseVisionLabel>> result =
+                  detector.detectInImage(image)
+                          .addOnSuccessListener(
+                                  new OnSuccessListener<List<FirebaseVisionLabel>>() {
+                                      @Override
+                                      public void onSuccess(List<FirebaseVisionLabel> labels) {
+                                          promise.resolve(processDeviceResultImageLabel(labels));
+                                      }
+                                  })
+                          .addOnFailureListener(
+                                  new OnFailureListener() {
+                                      @Override
+                                      public void onFailure(@NonNull Exception e) {
+                                          promise.reject(e);
+                                          e.printStackTrace();
+
+                                      }
+                                  });
+
+      }catch (IOException e){
+
+          promise.reject(e);
+          e.printStackTrace();
+      }
+
+  }
+
+  private WritableArray processDeviceResultImageLabel(List<FirebaseVisionLabel> firebaseVisionLabel){
+
+      WritableArray data = Arguments.createArray();
+      for(int i = 0; i < firebaseVisionLabel.size(); i++){
+          WritableMap info = Arguments.createMap();
+
+          info.putString("label", firebaseVisionLabel.get(i).getLabel());
+          info.putDouble("confidence", firebaseVisionLabel.get(i).getConfidence());
+
+          data.pushMap(info);
+      }
+
+      return data;
   }
 
   @ReactMethod
